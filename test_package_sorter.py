@@ -7,6 +7,7 @@ appropriate exceptions.
 """
 
 import unittest
+import math
 
 from package_sorter import sort
 
@@ -17,7 +18,7 @@ class TestPackageSorter(unittest.TestCase):
     def test_standard(self) -> None:
         """Packages that are neither bulky nor heavy should be STANDARD."""
         self.assertEqual(sort(10, 10, 10, 10), "STANDARD")
-        # Volume just under one million (100 × 100 × 99 = 990 000) and mass < 20
+        # Volume just under one million (100 × 100 × 99 = 990 000) and mass < 20
         self.assertEqual(sort(100, 100, 99, 19.999), "STANDARD")
 
     def test_bulky_by_volume_boundary(self) -> None:
@@ -25,16 +26,22 @@ class TestPackageSorter(unittest.TestCase):
         self.assertEqual(sort(100, 100, 100, 0), "SPECIAL")
 
     def test_bulky_by_dimension_boundary(self) -> None:
-        """Any dimension equal to 150 cm makes the package bulky."""
+        """Any dimension equal to 150 cm makes the package bulky."""
         self.assertEqual(sort(150, 1, 1, 0), "SPECIAL")
+        self.assertEqual(sort(1, 150, 1, 0), "SPECIAL")
+        self.assertEqual(sort(1, 1, 150, 0), "SPECIAL")
 
     def test_heavy_boundary(self) -> None:
-        """Mass equal to 20 kg marks a package as heavy."""
+        """Mass equal to 20 kg marks a package as heavy."""
         self.assertEqual(sort(1, 1, 1, 20), "SPECIAL")
 
     def test_rejected_when_both(self) -> None:
         """Packages that are both bulky and heavy are REJECTED."""
         self.assertEqual(sort(200, 200, 1, 25), "REJECTED")
+
+    def test_rejected_both_at_boundaries(self) -> None:
+        """At exact boundaries for bulky and heavy, should be REJECTED."""
+        self.assertEqual(sort(150, 1, 1, 20), "REJECTED")
 
     def test_zero_values(self) -> None:
         """Zero dimensions and mass should not trip special logic."""
@@ -44,14 +51,40 @@ class TestPackageSorter(unittest.TestCase):
         """Float values should be handled correctly."""
         self.assertEqual(sort(100.0, 100.0, 100.0, 19.0), "SPECIAL")
 
+    def test_volume_just_below_threshold(self) -> None:
+        """Volume just below one million should remain STANDARD."""
+        self.assertEqual(sort(100, 100, 99.9999, 0), "STANDARD")
+
+    def test_mass_just_under_boundary(self) -> None:
+        """Mass just below 20 kg should remain STANDARD."""
+        self.assertEqual(sort(1, 1, 1, 19.9999999), "STANDARD")
+
+    def test_dimension_just_under_boundary(self) -> None:
+        """Dimension just below 150 cm should remain STANDARD."""
+        self.assertEqual(sort(149.9999, 1, 1, 0), "STANDARD")
+
+    def test_extremely_large_values(self) -> None:
+        """Very large values should classify as bulky."""
+        self.assertEqual(sort(1e8, 1e1, 1e1, 0), "SPECIAL")
+
+    def test_dimension_permutations(self) -> None:
+        """Order of dimensions should not affect classification."""
+        base = sort(100, 150, 10, 19.9)  # bulky by dim
+        self.assertEqual(base, sort(150, 100, 10, 19.9))
+        self.assertEqual(base, sort(10, 100, 150, 19.9))
+
     def test_type_and_value_validation(self) -> None:
-        """Non‑numeric or negative inputs should raise exceptions."""
+        """Non-numeric or invalid inputs should raise exceptions."""
         with self.assertRaises(TypeError):
-            sort("10", 10, 10, 10)  # Non‑numeric width
+            sort("10", 10, 10, 10)  # Non-numeric width
         with self.assertRaises(ValueError):
             sort(10, -1, 10, 10)   # Negative height
         with self.assertRaises(ValueError):
-            sort(float("inf"), 1, 1, 1)  # Non‑finite width
+            sort(float("inf"), 1, 1, 1)  # Non-finite width
+        with self.assertRaises(ValueError):
+            sort(math.nan, 1, 1, 1)      # NaN width
+        with self.assertRaises(TypeError):
+            sort(True, 10, 10, 10)       # bool is invalid even though subclass of int
 
 
 if __name__ == "__main__":  # pragma: no cover
